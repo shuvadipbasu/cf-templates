@@ -1,0 +1,1 @@
+this example shows the use of parameter, mappings and output along with resources

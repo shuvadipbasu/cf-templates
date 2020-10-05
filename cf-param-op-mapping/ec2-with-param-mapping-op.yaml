@@ -1,0 +1,74 @@
+---
+Parameters:
+    InstanceType:
+        Description: Select Instance Type
+        Type: String
+        Default: t2.micro
+        AllowedValues:
+            - t2.nano
+            - t2.micro
+            - t2.small
+    KeyName:
+        Description: Name of an existing EC2 KeyPair to enable SSH access to the instances
+        Type: AWS::EC2::KeyPair::KeyName
+        ConstraintDescription: must be the name of an existing EC2 KeyPair.
+        
+    SSHLocation:
+        Description: Ip address range to ssh to this ec2
+        Type: String
+        Default: 0.0.0.0/0
+        AllowedPattern: (\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})/(\d{1,2})
+        ConstraintDescription: must be a valid IP CIDR range of the form x.x.x.x/x.
+        
+Mappings:
+    AWSInstanceType2Arch:
+        t1.micro:
+            Arch: PV
+        t2.nano:
+            Arch: HVM
+        t2.micro:
+            Arch: HVM
+            
+    AWSRegionArch2AMI:
+        us-east-1:
+            PV: ami-0023040df18933030
+            HVM: ami-0947d2ba12ee1ff75
+        us-west-2:
+            PV: ami-7f77b31f
+            HVM: ami-7172b611
+            
+Resources:
+    EC2Instance:
+        Type: AWS::EC2::Instance
+        Properties:
+            InstanceType: !Ref 'InstanceType'
+            SecurityGroups: [!Ref 'InstanceSecurityGroup']
+            KeyName: !Ref 'KeyName'
+            ImageId: !FindInMap [AWSRegionArch2AMI, !Ref 'AWS::Region', !FindInMap [AWSInstanceType2Arch,
+                        !Ref 'InstanceType', Arch]]
+    
+    InstanceSecurityGroup:
+        Type: AWS::EC2::SecurityGroup
+        Properties:
+            GroupDescription: Enable SSH access
+            SecurityGroupIngress:
+            - IpProtocol: tcp
+              FromPort: '22'
+              ToPort: '22'
+              CidrIp: !Ref 'SSHLocation'
+              
+    IPAddress:
+        Type: AWS::EC2::EIP
+        
+    IPAssoc:
+        Type: AWS::EC2::EIPAssociation
+        Properties:
+            InstanceId: !Ref 'EC2Instance'
+            EIP: !Ref 'IPAddress'
+Outputs:
+    InstanceId:
+        Description: InstanceId of the newly created EC2 instance
+        Value: !Ref 'EC2Instance'
+    InstanceIPAddress:
+        Description: IP address of the newly created EC2 instance
+        Value: !Ref 'IPAddress'
